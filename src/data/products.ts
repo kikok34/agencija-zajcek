@@ -1,40 +1,11 @@
-export interface ProductColor {
-  name: string;
-  hex: string;
-}
-
-export interface VolumeDiscount {
-  qty: string;
-  price: number;
-}
-
-export interface Product {
-  id: string;
-  sku: string;
-  name: string;
-  category: string;
-  categoryName: string;
-  shortDescription: string;
-  fullDescription: string;
-  priceFrom: number;
-  regularPrice?: number;
-  outletPrice?: number;
-  minQuantity: number;
-  stock: number;
-  isOutlet?: boolean;
-  featured?: boolean;
-  badge?: string;
-  images: string[];
-  colors: ProductColor[];
-  sizes?: string[];
-  materials: string;
-  printTechniques: string[];
-  deliveryTime: string;
-  suitableFor: string[];
-  specs: Record<string, string>;
-  volumeDiscounts: VolumeDiscount[];
-  relatedProductIds: string[];
-}
+export type {
+  ProductColor,
+  VolumeDiscount,
+  PrintingPosition,
+  ProductStatus,
+  Product,
+} from "@/types/products";
+import type { Product } from "@/types/products";
 
 export const PRODUCTS: Product[] = [
   // ==========================================
@@ -50,9 +21,49 @@ export const PRODUCTS: Product[] = [
     fullDescription: "Organska unisex majica Organic Creator je industrijski standard za promocijska oblačila najvišje kakovosti. Izdelana iz 100% česanega obročasto predenega organskega bombaža (180 g/m²). Ima ojačan ovratnik z rebrastim patentom, dvojni šiv na rokavih in spodnjem robu ter izjemno gladko površino, primerno za zahtevne tiskarske motive.",
     priceFrom: 4.85,
     minQuantity: 25,
+    quantityIncrement: 5,
     stock: 2400,
+    localStock: 800,
+    supplierStock: 1600,
     featured: true,
     badge: "Bestseller",
+    status: "published",
+    vatRate: 22,
+    priceVatIncluded: false,
+    allowPersonalization: true,
+    supplierId: "supplier-a",
+    supplierName: "Demo dobavitelj A (PromoTextile Europe)",
+    supplierSku: "PTE-ORG-101",
+    supplierPurchasePrice: 2.95,
+    manualPriceOverride: false,
+    marginPercent: 39,
+    lastSupplierSync: "2026-11-25T14:30:00Z",
+    printingPositions: [
+      {
+        id: "prsa_levo",
+        name: "Prsa levo (srčna stran)",
+        description: "Klasična pozicija za logotip ali simbol podjetja.",
+        maxPrintArea: "100 × 100 mm (demo)",
+        technique: "Sitotisk ali vezenje",
+        dashedArea: { top: "28%", left: "55%", width: "20%", height: "18%" },
+      },
+      {
+        id: "spredaj_sredina",
+        name: "Spredaj sredina",
+        description: "Večji motiv ali slogan čez celotna prsa.",
+        maxPrintArea: "280 × 350 mm (demo)",
+        technique: "Sitotisk ali digitalni tisk DTF",
+        dashedArea: { top: "30%", left: "30%", width: "40%", height: "35%" },
+      },
+      {
+        id: "hrbet",
+        name: "Hrbet (zgoraj ali cel)",
+        description: "Zadnja stran majice za večji napis podjetja ali grafiko.",
+        maxPrintArea: "300 × 400 mm (demo)",
+        technique: "Sitotisk",
+        dashedArea: { top: "25%", left: "25%", width: "50%", height: "45%" },
+      },
+    ],
     images: [
       "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80",
       "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?auto=format&fit=crop&w=800&q=80",
@@ -722,6 +733,89 @@ export const PRODUCTS: Product[] = [
       { qty: "100+ kos", price: 9.80 },
     ],
     relatedProductIds: ["home-01", "home-02"],
+  },
+  {
+    id: "home-04",
+    sku: "AZ-HOM-504",
+    name: "Bento eko posoda za malico z bambusovim pokrovom 1000ml",
+    category: "dom-in-zivljenje",
+    categoryName: "Dom in življenje",
+    shortDescription: "Sodobna posoda za malico iz recikliranega PP z naravnim bambusovim pokrovom, elastičnim trakom in jedilnim priborom. Popolna za tisk ali gravuro.",
+    fullDescription: "Popolna izbira za zdravo prehrano na delovnem mestu in trajnostno poslovno obdarovanje. Posoda z volumnom 1000 ml vključuje trden pokrov iz naravnega bambusa, ki služi tudi kot deska za rezanje, elastičen tekstilni trak za varno zapiranje ter priložen set jedilnega pribora. Varno za mikrovalovno pečico (brez pokrova) in pomivalni stroj. Zagotavlja več vrhunskih pozicij za personalizacijo vašega podjetja.",
+    priceFrom: 6.45,
+    minQuantity: 25,
+    quantityIncrement: 5,
+    stock: 1450,
+    localStock: 450,
+    supplierStock: 1000,
+    featured: true,
+    badge: "Eko hit 2026",
+    status: "published",
+    vatRate: 22,
+    priceVatIncluded: false,
+    allowPersonalization: true,
+    supplierId: "supplier-a",
+    supplierName: "Demo dobavitelj A (PromoTextile Europe)",
+    supplierSku: "PTE-BNT-9002",
+    supplierPurchasePrice: 3.85,
+    manualPriceOverride: false,
+    marginPercent: 40,
+    lastSupplierSync: "2026-11-25T14:30:00Z",
+    printingPositions: [
+      {
+        id: "pokrov",
+        name: "Pokrov (bambus)",
+        description: "Zgornja površina bambusovega pokrova — najbolj opazna pozicija za lasersko gravuro.",
+        maxPrintArea: "100 × 60 mm (demo)",
+        technique: "Laserska gravura ali tamponski tisk",
+        dashedArea: { top: "25%", left: "20%", width: "60%", height: "50%" },
+      },
+      {
+        id: "desna_stran",
+        name: "Desna stran",
+        description: "Bočna stran posode za diskreten podolgovat logotip ali slogan podjetja.",
+        maxPrintArea: "80 × 25 mm (demo)",
+        technique: "Tamponski tisk (do 2 barvi)",
+        dashedArea: { top: "45%", left: "55%", width: "35%", height: "35%" },
+      },
+      {
+        id: "leva_stran",
+        name: "Leva stran",
+        description: "Nasprotna bočna stran posode za logotip podjetja ali partnersko oznako.",
+        maxPrintArea: "80 × 25 mm (demo)",
+        technique: "Tamponski tisk (do 2 barvi)",
+        dashedArea: { top: "45%", left: "10%", width: "35%", height: "35%" },
+      },
+    ],
+    images: [
+      "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1577906096429-f73c2c312435?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&q=80",
+    ],
+    colors: [
+      { name: "Bambus / Naravna bela", hex: "#f8fafc" },
+      { name: "Bambus / Antracit siva", hex: "#334155" },
+      { name: "Bambus / Žajbljevo zelena", hex: "#4ade80" },
+    ],
+    materials: "Brez BPA recikliran PP (polipropilen), naravni bambus, tekstilna elastika",
+    printTechniques: ["Laserska gravura na bambus", "Tamponski tisk", "Sitotisk"],
+    deliveryTime: "4–6 delovnih dni z dotiskom / 24h brez",
+    suitableFor: ["Darila za zaposlene", "Zdrav življenjski slog", "Kongresi in seminarji", "Novoletni paketi"],
+    specs: {
+      "Prostornina": "1000 ml",
+      "Material pokrova": "100% naravni trajnostni bambus",
+      "Dimenzije": "19,5 × 12,2 × 6,5 cm",
+      "Certifikati": "LFGB varno za živila, BPA Free",
+      "Vzdrževanje": "Posoda in pribor primerna za pomivalni stroj (pokrov ročno pranje)",
+    },
+    volumeDiscounts: [
+      { qty: "25–49 kos", price: 7.90 },
+      { qty: "50–99 kos", price: 7.20 },
+      { qty: "100–249 kos", price: 6.80 },
+      { qty: "250–499 kos", price: 6.45 },
+      { qty: "500+ kos", price: 5.95 },
+    ],
+    relatedProductIds: ["home-01", "home-02", "bag-01"],
   },
 
   // ==========================================

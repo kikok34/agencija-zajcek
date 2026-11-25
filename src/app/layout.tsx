@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ProductProvider } from "@/context/ProductContext";
+import { OrderProvider } from "@/context/OrderContext";
 import { CartProvider } from "@/context/CartContext";
 import { AnalyticsProvider } from "@/context/AnalyticsContext";
 import { ModalProvider } from "@/context/ModalContext";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { DemoBanner } from "@/components/DemoBanner";
 import { CartDrawer } from "@/components/CartDrawer";
 import { InquiryModal } from "@/components/InquiryModal";
 import { SampleRequestModal } from "@/components/SampleRequestModal";
@@ -37,24 +40,29 @@ export default function RootLayout({
   return (
     <html lang="sl" className="scroll-smooth">
       <body className="min-h-screen flex flex-col font-sans selection:bg-brand-100 selection:text-brand-900">
-        <AnalyticsProvider>
-          <CartProvider>
-            <ModalProvider>
-              <Header />
-              <main className="flex-1">{children}</main>
-              <Footer />
+        <ProductProvider>
+          <OrderProvider>
+            <AnalyticsProvider>
+              <CartProvider>
+                <ModalProvider>
+                  <DemoBanner />
+                  <Header />
+                  <main className="flex-1">{children}</main>
+                  <Footer />
 
-              {/* Global Interactive Modals & Drawers */}
-              <CartDrawer />
-              <InquiryModal />
-              <SampleRequestModal />
-              <PdfViewerModal />
-              <SearchModal />
-              <AnalyticsBadge />
-              <Toast />
-            </ModalProvider>
-          </CartProvider>
-        </AnalyticsProvider>
+                  {/* Global Interactive Modals & Drawers */}
+                  <CartDrawer />
+                  <InquiryModal />
+                  <SampleRequestModal />
+                  <PdfViewerModal />
+                  <SearchModal />
+                  <AnalyticsBadge />
+                  <Toast />
+                </ModalProvider>
+              </CartProvider>
+            </AnalyticsProvider>
+          </OrderProvider>
+        </ProductProvider>
       </body>
     </html>
   );

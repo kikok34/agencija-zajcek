@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { PrintingPosition } from "@/types/products";
 
 export interface CartItem {
   id: string;
@@ -15,6 +16,16 @@ export interface CartItem {
   minQuantity?: number;
   stock?: number;
   isOutlet?: boolean;
+
+  // Demo 2 extensions
+  printOption?: "unbranded" | "branded";
+  printingPosition?: PrintingPosition;
+  artworkFileId?: string;
+  artworkFileName?: string;
+  artworkFileSize?: number;
+  artworkFileType?: string;
+  artworkPreviewUrl?: string;
+  notes?: string;
 }
 
 interface CartContextType {
@@ -25,6 +36,7 @@ interface CartContextType {
   clearCart: () => void;
   totalItems: number;
   subtotal: number;
+  hasBrandedItems: boolean;
   isCartOpen: boolean;
   setIsCartOpen: (open: boolean) => void;
   toastMessage: string | null;
@@ -33,8 +45,19 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-export const getItemKey = (item: { id: string; color?: string; size?: string; printTechnique?: string }) => {
-  return `${item.id}__${item.color || "def"}__${item.size || "def"}__${item.printTechnique || "none"}`;
+export const getItemKey = (item: {
+  id: string;
+  color?: string;
+  size?: string;
+  printTechnique?: string;
+  printOption?: string;
+  printingPosition?: { id: string };
+  artworkFileName?: string;
+}) => {
+  const posKey = item.printingPosition?.id || "none";
+  const optKey = item.printOption || "unbranded";
+  const artKey = item.artworkFileName ? encodeURIComponent(item.artworkFileName) : "noart";
+  return `${item.id}__${item.color || "def"}__${item.size || "def"}__${item.printTechnique || "none"}__${optKey}__${posKey}__${artKey}`;
 };
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -46,7 +69,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Load from localStorage on mount
   useEffect(() => {
     try {
-      const stored = localStorage.getItem("az_cart_v1");
+      const stored = localStorage.getItem("az_cart_v2") || localStorage.getItem("az_cart_v1");
       if (stored) {
         setItems(JSON.parse(stored));
       }
@@ -60,7 +83,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (!isLoaded) return;
     try {
-      localStorage.setItem("az_cart_v1", JSON.stringify(items));
+      localStorage.setItem("az_cart_v2", JSON.stringify(items));
     } catch (e) {
       console.error("Failed to save cart to localStorage", e);
     }
@@ -88,7 +111,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    showToast(`Izdelek »${item.name}« (${quantity} kos) je dodan v košarico.`);
+    const isCustomized = item.printOption === "branded";
+    const customText = isCustomized
+      ? ` (z logotipom: ${item.printingPosition?.name || "izbrana pozicija"})`
+      : "";
+    showToast(`Izdelek »${item.name}« (${quantity} kos)${customText} je dodan v košarico.`);
   };
 
   const removeItem = (uniqueKey: string) => {
@@ -111,6 +138,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const hasBrandedItems = items.some((i) => i.printOption === "branded");
 
   return (
     <CartContext.Provider
@@ -122,6 +150,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         clearCart,
         totalItems,
         subtotal,
+        hasBrandedItems,
         isCartOpen,
         setIsCartOpen,
         toastMessage,

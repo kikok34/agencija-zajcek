@@ -17,17 +17,27 @@ import {
   FileCheck,
   Info,
   Truck,
+  Paintbrush,
+  Maximize2,
+  FileText,
+  AlertCircle,
+  HelpCircle,
 } from "lucide-react";
-import { PRODUCTS, Product } from "@/data/products";
+import { useProducts } from "@/context/ProductContext";
 import { useCart } from "@/context/CartContext";
 import { useModals } from "@/context/ModalContext";
 import { useAnalytics } from "@/context/AnalyticsContext";
+import { PrintingPosition, Product } from "@/types/products";
+import { PrintingPositionModal } from "@/components/PrintingPositionModal";
+import { ArtworkUploader } from "@/components/ArtworkUploader";
 
 export default function ProductDetailPage() {
   const params = useParams();
   const id = params?.id as string;
 
-  const product = PRODUCTS.find((p) => p.id === id);
+  const { getProduct, products } = useProducts();
+  const product = getProduct(id);
+
   if (!product) {
     notFound();
   }
@@ -49,19 +59,38 @@ export default function ProductDetailPage() {
   const [selectedPrint, setSelectedPrint] = useState(
     product.printTechniques[0] || "Brez tiska"
   );
+
+  // Demo 2: Branding & Printing Position State
+  const [printOption, setPrintOption] = useState<"unbranded" | "branded">(
+    product.allowPersonalization !== false ? "branded" : "unbranded"
+  );
+  const [isPositionModalOpen, setIsPositionModalOpen] = useState(false);
+  const [selectedPrintingPosition, setSelectedPrintingPosition] = useState<PrintingPosition | null>(
+    product.printingPositions?.[0] || null
+  );
+  const [uploadedArtwork, setUploadedArtwork] = useState<{
+    fileId: string;
+    fileName: string;
+    fileSize: number;
+    fileType: string;
+    previewUrl?: string;
+  } | null>(null);
+  const [itemNotes, setItemNotes] = useState("");
+
+  // Quantity with increment step
+  const incrementStep = product.quantityIncrement || 5;
   const [quantity, setQuantity] = useState(product.minQuantity);
 
   // Related products
-  const relatedProducts = PRODUCTS.filter((p) =>
-    product.relatedProductIds.includes(p.id)
-  ).slice(0, 4);
+  const relatedProducts = products
+    .filter((p) => product.relatedProductIds?.includes(p.id) && p.id !== product.id)
+    .slice(0, 4);
 
   // Calculate tier price based on current quantity
   const currentTierPrice = (() => {
     if (!product.volumeDiscounts || product.volumeDiscounts.length === 0) {
       return product.priceFrom;
     }
-    // Simple tiered matching
     for (let i = product.volumeDiscounts.length - 1; i >= 0; i--) {
       const tier = product.volumeDiscounts[i];
       const match = tier.qty.match(/(\d+)/);
@@ -82,10 +111,18 @@ export default function ProductDetailPage() {
         image: product.images[selectedImage] || product.images[0],
         color: selectedColor,
         size: selectedSize,
-        printTechnique: selectedPrint,
+        printTechnique: printOption === "branded" ? selectedPrint : "Brez tiska",
         minQuantity: product.minQuantity,
         stock: product.stock,
         isOutlet: product.isOutlet,
+        printOption,
+        printingPosition: printOption === "branded" ? selectedPrintingPosition || undefined : undefined,
+        artworkFileId: printOption === "branded" ? uploadedArtwork?.fileId : undefined,
+        artworkFileName: printOption === "branded" ? uploadedArtwork?.fileName : undefined,
+        artworkFileSize: printOption === "branded" ? uploadedArtwork?.fileSize : undefined,
+        artworkFileType: printOption === "branded" ? uploadedArtwork?.fileType : undefined,
+        artworkPreviewUrl: printOption === "branded" ? uploadedArtwork?.previewUrl : undefined,
+        notes: itemNotes.trim() ? itemNotes.trim() : undefined,
       },
       quantity
     );
@@ -93,7 +130,7 @@ export default function ProductDetailPage() {
     trackEvent(
       "cart_add",
       `Dodano v košarico: ${product.name}`,
-      `${quantity} kos, barva: ${selectedColor}, tisk: ${selectedPrint}`
+      `${quantity} kos, opcija: ${printOption}, cona: ${selectedPrintingPosition?.name || "brez"}`
     );
   };
 
@@ -144,10 +181,10 @@ export default function ProductDetailPage() {
 
         {/* Main Product Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 sm:gap-14">
-          {/* Left Column: Gallery */}
-          <div className="lg:col-span-7 space-y-4">
+          {/* Left Column: Gallery & Position Visualizer */}
+          <div className="lg:col-span-7 space-y-5">
             {/* Big Main Image */}
-            <div className="relative rounded-3xl overflow-hidden bg-slate-100 border border-slate-200 aspect-square sm:aspect-4/3 max-h-[500px]">
+            <div className="relative rounded-3xl overflow-hidden bg-slate-100 border border-slate-200 aspect-square sm:aspect-4/3 max-h-[500px] shadow-xs">
               <img
                 src={product.images[selectedImage] || product.images[0]}
                 alt={product.name}
@@ -160,7 +197,47 @@ export default function ProductDetailPage() {
               )}
               {product.isOutlet && (
                 <div className="absolute top-4 right-4 bg-accent-500 text-slate-950 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider shadow-md">
-                  Outlet cena
+                  Outlet ponudba
+                </div>
+              )}
+
+              {/* Printing Position Dashed Preview Indicator on Main Image */}
+              {printOption === "branded" && selectedPrintingPosition && (
+                <div
+                  className="absolute border-2 border-dashed border-brand-500 bg-brand-500/20 rounded-lg flex items-center justify-center p-1 pointer-events-none transition-all"
+                  style={{
+                    top: selectedPrintingPosition.dashedArea.top,
+                    left: selectedPrintingPosition.dashedArea.left,
+                    width: selectedPrintingPosition.dashedArea.width,
+                    height: selectedPrintingPosition.dashedArea.height,
+                  }}
+                >
+                  {uploadedArtwork?.previewUrl ? (
+                    <img
+                      src={uploadedArtwork.previewUrl}
+                      alt="Logotip"
+                      className="max-h-full max-w-full object-contain filter drop-shadow opacity-90"
+                    />
+                  ) : (
+                    <span className="text-[10px] font-bold text-brand-950 bg-white/90 px-1.5 py-0.5 rounded shadow-2xs">
+                      {selectedPrintingPosition.name}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {printOption === "branded" && selectedPrintingPosition && (
+                <div className="absolute bottom-3 left-3 right-3 bg-slate-900/80 backdrop-blur-xs text-white text-xs py-1.5 px-3 rounded-xl flex items-center justify-between">
+                  <span>
+                    Cona tiska: <strong>{selectedPrintingPosition.name}</strong> ({selectedPrintingPosition.maxPrintArea})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsPositionModalOpen(true)}
+                    className="text-brand-300 hover:text-white underline text-[11px] font-semibold"
+                  >
+                    Spremeni cono →
+                  </button>
                 </div>
               )}
             </div>
@@ -173,7 +250,7 @@ export default function ProductDetailPage() {
                     key={idx}
                     type="button"
                     onClick={() => setSelectedImage(idx)}
-                    className={`w-20 h-20 rounded-2xl overflow-hidden border-2 flex-shrink-0 transition-all ${
+                    className={`w-20 h-20 rounded-2xl overflow-hidden border-2 shrink-0 transition-all ${
                       selectedImage === idx
                         ? "border-brand-700 shadow-md scale-105"
                         : "border-slate-200 opacity-70 hover:opacity-100"
@@ -192,16 +269,16 @@ export default function ProductDetailPage() {
             {/* Trust Points Banner Under Gallery */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
               <div className="flex items-center gap-2">
-                <Truck className="w-4 h-4 text-brand-700 flex-shrink-0" />
+                <Truck className="w-4 h-4 text-brand-700 shrink-0" />
                 <span className="text-slate-700 font-medium">{product.deliveryTime}</span>
               </div>
               <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span className="text-slate-700 font-medium">Brezplačna e-korektura tiska</span>
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="text-slate-700 font-medium">Brezplačen vizualni predogled</span>
               </div>
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-accent-600 flex-shrink-0" />
-                <span className="text-slate-700 font-medium">Strokovno B2B svetovanje</span>
+                <Sparkles className="w-4 h-4 text-accent-600 shrink-0" />
+                <span className="text-slate-700 font-medium">Brez spletnega plačila</span>
               </div>
             </div>
           </div>
@@ -211,8 +288,8 @@ export default function ProductDetailPage() {
             <div>
               <div className="flex items-center justify-between text-xs text-slate-400 font-mono mb-1">
                 <span>SKU: {product.sku}</span>
-                <span className="text-emerald-600 font-semibold font-sans">
-                  Na zalogi: {product.stock} kos
+                <span className="text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full font-semibold font-sans">
+                  Zaloga: {product.stock} kos (demo)
                 </span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -232,14 +309,22 @@ export default function ProductDetailPage() {
                     <span className="text-3xl font-extrabold text-brand-950">
                       {currentTierPrice.toFixed(2)} €
                     </span>
-                    <span className="text-xs text-slate-500">/ kos + DDV</span>
+                    <span className="text-xs text-slate-600 font-semibold">brez DDV</span>
                   </div>
+                  <span className="text-[11px] text-slate-500">
+                    (z 22% DDV: {(currentTierPrice * 1.22).toFixed(2)} €)
+                  </span>
                 </div>
                 <div className="text-right">
                   <span className="text-xs text-slate-500 block">Minimalno naročilo:</span>
                   <span className="text-sm font-bold text-slate-800">
                     {product.minQuantity} kos
                   </span>
+                  {product.quantityIncrement && (
+                    <span className="text-[10px] text-slate-400 block">
+                      (korak: +{product.quantityIncrement} kos)
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -274,7 +359,7 @@ export default function ProductDetailPage() {
             </div>
 
             {/* Colors Selector */}
-            {product.colors.length > 0 && (
+            {product.colors && product.colors.length > 0 && (
               <div>
                 <label className="block text-xs font-bold text-slate-800 mb-2">
                   Izberite barvo: <span className="text-brand-900 font-semibold">{selectedColor}</span>
@@ -327,47 +412,137 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* Print Techniques Selector */}
-            {product.printTechniques.length > 0 && (
-              <div>
-                <label className="block text-xs font-bold text-slate-800 mb-2">
-                  Želena tehnika tiska / dodelave:
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {product.printTechniques.map((tech) => (
-                    <button
-                      key={tech}
-                      type="button"
-                      onClick={() => setSelectedPrint(tech)}
-                      className={`p-2.5 rounded-xl border text-left text-xs transition-all ${
-                        selectedPrint === tech
-                          ? "border-brand-900 bg-brand-50 text-brand-950 font-bold"
-                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span>{tech}</span>
-                        {selectedPrint === tech && (
-                          <Check className="w-3.5 h-3.5 text-brand-800" />
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* DEMO 2: Personalization & Printing Option Toggle */}
+            <div className="space-y-3 pt-2 border-t border-slate-200">
+              <label className="block text-xs font-bold text-slate-800">
+                Prilagoditev z vašim logotipom:
+              </label>
 
-            {/* Quantity Selector */}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPrintOption("unbranded")}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    printOption === "unbranded"
+                      ? "border-brand-700 bg-brand-50/60 ring-2 ring-brand-700 font-bold text-brand-950"
+                      : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                  }`}
+                >
+                  <div className="text-xs font-extrabold">Brez tiska</div>
+                  <div className="text-[11px] text-slate-500 font-normal mt-0.5">
+                    Čisti artikli za takojšnjo dobavo
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPrintOption("branded")}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    printOption === "branded"
+                      ? "border-brand-700 bg-brand-50/60 ring-2 ring-brand-700 font-bold text-brand-950"
+                      : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                  }`}
+                >
+                  <div className="text-xs font-extrabold flex items-center justify-between">
+                    <span>Z vašim logotipom</span>
+                    <Sparkles className="w-3.5 h-3.5 text-accent-600" />
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-normal mt-0.5">
+                    Tisk, laserska gravura ali vezenje
+                  </div>
+                </button>
+              </div>
+
+              {/* Position selector and artwork uploader when 'branded' is chosen */}
+              {printOption === "branded" && (
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-4 animate-in fade-in duration-150">
+                  {/* Selected Printing Position Card */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <Paintbrush className="w-3.5 h-3.5 text-brand-700" />
+                        <span>Pozicija tiska za ta artikel:</span>
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsPositionModalOpen(true)}
+                        className="text-xs font-bold text-brand-700 hover:text-brand-900 underline"
+                      >
+                        {selectedPrintingPosition ? "Spremeni cono" : "Izberi cono"} →
+                      </button>
+                    </div>
+
+                    {selectedPrintingPosition ? (
+                      <div
+                        onClick={() => setIsPositionModalOpen(true)}
+                        className="p-3 bg-white rounded-xl border border-brand-200 shadow-2xs hover:border-brand-400 cursor-pointer transition-colors flex items-center justify-between gap-3"
+                      >
+                        <div>
+                          <div className="font-extrabold text-xs text-brand-950">
+                            {selectedPrintingPosition.name}
+                          </div>
+                          <div className="text-[11px] text-slate-500 mt-0.5">
+                            Maks. dimenzija: <strong>{selectedPrintingPosition.maxPrintArea}</strong> • Tehnika: {selectedPrintingPosition.technique}
+                          </div>
+                        </div>
+                        <span className="text-[11px] text-brand-700 font-semibold px-2 py-1 bg-brand-50 rounded-md shrink-0">
+                          Spremeni
+                        </span>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setIsPositionModalOpen(true)}
+                        className="w-full p-3 bg-white border border-dashed border-slate-300 rounded-xl text-center text-xs font-semibold text-brand-700 hover:bg-brand-50 transition-colors"
+                      >
+                        + Izberite pozicijo tiska (Pokrov, Desna stran, Leva stran...)
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Artwork Uploader Component */}
+                  <ArtworkUploader
+                    onFileSelected={(fileData) => setUploadedArtwork(fileData)}
+                    currentFileName={uploadedArtwork?.fileName}
+                    currentFileSize={uploadedArtwork?.fileSize}
+                    currentPreviewUrl={uploadedArtwork?.previewUrl}
+                    label="Naložite logotip za ta artikel (PDF, SVG, PNG, JPG):"
+                  />
+
+                  {/* Optional Item Notes */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                      <FileText className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Opombe za tisk tega artikla (neobvezno):</span>
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={itemNotes}
+                      onChange={(e) => setItemNotes(e.target.value)}
+                      placeholder="npr. Bela barva logotipa, Pantone 286C, postavitev na sredino..."
+                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-brand-600 focus:outline-hidden"
+                    />
+                  </div>
+
+                  <div className="text-[11px] text-brand-800 bg-brand-100/60 p-2.5 rounded-xl border border-brand-200/80">
+                    💡 <strong>Cena tiska in dostave:</strong> Bo v celoti potrjena pred izvedbo naročila. Pred tiskom prejmete brezplačen vizualni predogled.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Quantity Selector enforcing minimums and increments */}
             <div>
               <label className="block text-xs font-bold text-slate-800 mb-2">
-                Količina za naročilo / povpraševanje:
+                Količina za naročilo:
               </label>
               <div className="flex items-center gap-3">
                 <div className="inline-flex items-center border border-slate-300 rounded-xl bg-white shadow-xs">
                   <button
                     type="button"
                     onClick={() =>
-                      setQuantity((q) => Math.max(product.minQuantity, q - 10))
+                      setQuantity((q) => Math.max(product.minQuantity, q - incrementStep))
                     }
                     className="px-3 py-2 text-slate-600 hover:bg-slate-100 rounded-l-xl font-bold"
                   >
@@ -376,26 +551,29 @@ export default function ProductDetailPage() {
                   <input
                     type="number"
                     min={product.minQuantity}
+                    step={incrementStep}
                     value={quantity}
-                    onChange={(e) =>
-                      setQuantity(Math.max(1, parseInt(e.target.value) || 1))
-                    }
-                    className="w-20 text-center font-bold text-sm py-2 border-0 focus:outline-none"
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || product.minQuantity;
+                      setQuantity(Math.max(product.minQuantity, val));
+                    }}
+                    className="w-20 text-center font-bold text-sm py-2 border-0 focus:outline-hidden"
                   />
                   <button
                     type="button"
-                    onClick={() => setQuantity((q) => q + 10)}
+                    onClick={() => setQuantity((q) => q + incrementStep)}
                     className="px-3 py-2 text-slate-600 hover:bg-slate-100 rounded-r-xl font-bold"
                   >
                     +
                   </button>
                 </div>
-                <span className="text-xs text-slate-500">
-                  Skupni okvirni znesek:{" "}
+                <div className="text-xs text-slate-500">
+                  <span>Okvirni znesek artiklov: </span>
                   <strong className="text-slate-900 font-extrabold text-sm">
                     {(currentTierPrice * quantity).toFixed(2)} €
                   </strong>
-                </span>
+                  <span className="text-[10px] text-slate-400 ml-1">brez DDV</span>
+                </div>
               </div>
             </div>
 
@@ -448,23 +626,36 @@ export default function ProductDetailPage() {
               <table className="w-full text-xs text-left">
                 <tbody className="divide-y divide-slate-100">
                   <tr className="bg-slate-50/70">
-                    <td className="px-4 py-3 font-semibold text-slate-700 w-1/3">
+                    <td className="py-2.5 px-4 font-semibold text-slate-500 w-1/3">
                       Material
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{product.materials}</td>
-                  </tr>
-                  {Object.entries(product.specs).map(([key, val]) => (
-                    <tr key={key}>
-                      <td className="px-4 py-3 font-semibold text-slate-700">{key}</td>
-                      <td className="px-4 py-3 text-slate-600">{val}</td>
-                    </tr>
-                  ))}
-                  <tr className="bg-slate-50/70">
-                    <td className="px-4 py-3 font-semibold text-slate-700">
-                      Podprti tiski
+                    <td className="py-2.5 px-4 text-slate-900 font-medium">
+                      {product.materials}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {product.printTechniques.join(", ")}
+                  </tr>
+                  {product.specs &&
+                    Object.entries(product.specs).map(([key, val]) => (
+                      <tr key={key}>
+                        <td className="py-2.5 px-4 font-semibold text-slate-500">
+                          {key}
+                        </td>
+                        <td className="py-2.5 px-4 text-slate-900">{val}</td>
+                      </tr>
+                    ))}
+                  <tr>
+                    <td className="py-2.5 px-4 font-semibold text-slate-500">
+                      Dobavni rok
+                    </td>
+                    <td className="py-2.5 px-4 text-slate-900">
+                      {product.deliveryTime}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-4 font-semibold text-slate-500">
+                      Zaloga (demo)
+                    </td>
+                    <td className="py-2.5 px-4 text-slate-900">
+                      {product.stock} kosov v skladišču (lokalno: {product.localStock || 0}, dobavitelj: {product.supplierStock || product.stock})
                     </td>
                   </tr>
                 </tbody>
@@ -472,102 +663,46 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* Primerno za (Suitability) */}
+          {/* Suitable For */}
           <div className="lg:col-span-5 space-y-4">
             <h3 className="text-lg font-bold text-slate-900">
-              Za kakšne priložnosti je artikel primeren?
+              Priporočeno za
             </h3>
-            <div className="space-y-2.5">
-              {product.suitableFor.map((item, idx) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {product.suitableFor?.map((suit) => (
                 <div
-                  key={idx}
-                  className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-3 text-xs text-slate-800 font-medium"
+                  key={suit}
+                  className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-3 text-xs"
                 >
-                  <div className="w-6 h-6 rounded-lg bg-brand-100 text-brand-900 flex items-center justify-center flex-shrink-0">
-                    <Check className="w-3.5 h-3.5" />
+                  <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                    <Check className="w-4 h-4" />
                   </div>
-                  <span>{item}</span>
+                  <span className="font-semibold text-slate-800">{suit}</span>
                 </div>
               ))}
             </div>
 
-            <div className="p-4 bg-brand-950 text-white rounded-2xl text-xs space-y-2 mt-4">
-              <div className="font-bold text-accent-300 flex items-center gap-1.5">
-                <Info className="w-4 h-4" />
-                Predogled vašega logotipa je brezplačen
-              </div>
-              <p className="text-slate-300 leading-relaxed">
-                Po oddanem povpraševanju vam naš grafični oblikovalec pripravi digitalno simulacijo
-                (e-korekturo) z vašim logotipom, da se pred potrditvijo naročila natančno prepričate
-                o barvah, velikosti in poziciji.
+            <div className="p-4 bg-brand-50/70 rounded-2xl border border-brand-100 text-xs text-brand-900 space-y-1 mt-6">
+              <span className="font-bold flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-brand-700" />
+                Vzorci in garancija kakovosti
+              </span>
+              <p className="text-brand-800/80 text-[11px] leading-relaxed">
+                Za vsa večja naročila vam pred začetkom izdelave brezplačno pripravimo vizualno korekturo in po želji pošljemo fizični vzorec izdelka.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Related Products */}
-        {relatedProducts.length > 0 && (
-          <div className="mt-20 pt-12 border-t border-slate-200 space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-bold text-slate-900">
-                  Podobni in dopolnilni promocijski izdelki
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Izdelki, ki jih podjetja pogosto kombinirajo v darilnih kompletih.
-                </p>
-              </div>
-              <Link
-                href={`/kategorije/${product.category}`}
-                className="text-xs font-semibold text-brand-700 hover:underline flex items-center gap-1"
-              >
-                <span>Vsi v kategoriji</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {relatedProducts.map((rel) => (
-                <div
-                  key={rel.id}
-                  className="bg-white rounded-2xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all flex flex-col justify-between overflow-hidden group"
-                >
-                  <div>
-                    <Link href={`/izdelki/${rel.id}`} className="block relative h-40 bg-slate-100 overflow-hidden">
-                      <img
-                        src={rel.images[0]}
-                        alt={rel.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    </Link>
-                    <div className="p-3.5 space-y-1">
-                      <div className="text-[10px] text-slate-400 font-mono">
-                        {rel.sku}
-                      </div>
-                      <Link href={`/izdelki/${rel.id}`}>
-                        <h4 className="text-xs font-bold text-slate-900 hover:text-brand-900 transition-colors line-clamp-1">
-                          {rel.name}
-                        </h4>
-                      </Link>
-                      <div className="text-xs font-extrabold text-slate-900 pt-1">
-                        od {rel.priceFrom.toFixed(2)} €
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-3.5 pt-0">
-                    <Link
-                      href={`/izdelki/${rel.id}`}
-                      className="w-full py-1.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1"
-                    >
-                      <span>Ogled artikla</span>
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Printing Position Modal */}
+        <PrintingPositionModal
+          isOpen={isPositionModalOpen}
+          onClose={() => setIsPositionModalOpen(false)}
+          product={product}
+          selectedPosition={selectedPrintingPosition}
+          onSelectPosition={(pos) => setSelectedPrintingPosition(pos)}
+          logoPreviewUrl={uploadedArtwork?.previewUrl}
+        />
       </div>
     </div>
   );
